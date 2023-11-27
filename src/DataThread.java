@@ -42,14 +42,6 @@ public class DataThread implements Observable, Runnable {
     }
   }
 
-  // private String getNewFileName(String bufferedFileName) {
-  // DateTimeFormatter dtf = DateTimeFormatter.ofPattern("ddMMyyyy_HHmmss");
-  // LocalDateTime now = LocalDateTime.now();
-  // StringBuilder newFileName = new StringBuilder(bufferedFileName);
-  // newFileName.insert(bufferedFileName.lastIndexOf("."), " " + dtf.format(now));
-  // return newFileName.toString();
-  // }
-
   /**
    * @implNote Acepta nuevas conexiones y luego notifica a todos los observadores
    *           o subscriptores. Este es quien dispara el evento.
@@ -70,9 +62,6 @@ public class DataThread implements Observable, Runnable {
       // Leer longitud del archivo
       long fileLength = dataInputStream.readLong();
       long originalFileLength = fileLength;
-
-      // System.out.println("Recibiendo archivo: " + fileName +
-      // ", Longitud: " + fileLength + " bytes");
 
       // Creamos un buffer de 64 KB cada elemento
       byte[] buffer = new byte[64 * 1024];
@@ -106,46 +95,6 @@ public class DataThread implements Observable, Runnable {
       // TODO: handle exception
     }
 
-    // try (
-    // // Crear flujos de entrada para la recepción de datos
-    // DataInputStream dataInputStream = new
-    // DataInputStream(socket.getInputStream());) {
-
-    // // Obtenemos la longitud del nombre del archivo
-    // int fileNameLength = dataInputStream.readInt();
-
-    // // Obtenemos el nombre del archivo
-    // byte[] fileNameBytes = new byte[fileNameLength];
-    // dataInputStream.readFully(fileNameBytes);
-    // String fileName = getNewFileName(new String(fileNameBytes,
-    // StandardCharsets.UTF_8));
-
-    // // Leemos la longitud del archivo
-    // long fileLength = dataInputStream.readLong();
-
-    // byte[] buffer = new byte[64 * 1024];
-    // int bytesRead;
-
-    // System.out.println("Recibiendo archivo: " + fileName +
-    // ", Longitud: " + fileLength + " bytes");
-    // try (FileOutputStream fileOutputStream = new FileOutputStream(fileName)) {
-    // while ((bytesRead = dataInputStream.read(buffer, 0, (int)
-    // Math.min(buffer.length, fileLength))) != -1) {
-    // fileOutputStream.write(buffer, 0, bytesRead);
-    // fileLength -= bytesRead;
-
-    // if (fileLength == 0) {
-    // break;
-    // }
-    // }
-    // }
-
-    // notifyObservers(buffer);
-    // System.out.println("Archivo recibido del cliente.");
-
-    // } catch (IOException e) {
-    // e.printStackTrace();
-    // }
   }
 
 }
