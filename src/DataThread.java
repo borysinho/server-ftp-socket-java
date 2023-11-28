@@ -6,8 +6,6 @@ import java.util.Set;
 
 public class DataThread implements Observable, Runnable {
   Socket socket;
-  // private DataInputStream dataInputStream;
-  // private DataOutputStream dataOutputStream;
   Set<Observer> observerSet = new HashSet<>();
 
   DataThread(Socket socket) {
@@ -155,7 +153,7 @@ public class DataThread implements Observable, Runnable {
       e.printStackTrace();
       System.out
           .println("DataThread.Run IOException: Error en la recepción de flujos de entrada. socket.getInputStream()");
-          
+
     }
   }
 
