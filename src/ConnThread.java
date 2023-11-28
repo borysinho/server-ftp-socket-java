@@ -39,13 +39,6 @@ public class ConnThread implements Observable, Runnable {
         // Quedamos en espera aceptando nuevas conexiones
         Socket client = this.serverSocket.accept();
 
-        if (client.isConnected()) {
-          System.out.println("New connection ID " + client.hashCode());
-        }
-
-        // Mostramos mensaje indicando que un nuevo cliente se ha conectado
-        
-
         // Evento disparado. Notificamos a todos los observadores o subscriptores
         notifyObservers((Object) client);
       } catch (IOException e) {

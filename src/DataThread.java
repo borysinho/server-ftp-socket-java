@@ -6,6 +6,8 @@ import java.util.Set;
 
 public class DataThread implements Observable, Runnable {
   Socket socket;
+  // private DataInputStream dataInputStream;
+  // private DataOutputStream dataOutputStream;
   Set<Observer> observerSet = new HashSet<>();
 
   DataThread(Socket socket) {
@@ -43,58 +45,118 @@ public class DataThread implements Observable, Runnable {
   }
 
   /**
+   * @implNote Es un método que agrupa todos los eventos lanzados por la clase y
+   *           los manda al observador con su respectivo nombre de evento
+   * @param event Nombre del evento que se enviará al observador
+   * @param obj   Objeto a enviar al observador
+   */
+  private void personalNotifier(String event, Object obj) {
+    for (Observer observer : observerSet) {
+      switch (event) {
+        case "data":
+          observer.on("data", obj);
+          break;
+        case "disconnection":
+          observer.on("disconnection", obj);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  /**
    * @implNote Acepta nuevas conexiones y luego notifica a todos los observadores
    *           o subscriptores. Este es quien dispara el evento.
    */
   @Override
   public void run() {
-    System.out.println("Ejecutando data.run");
-    try (
-        // Crear flujos de entrada para la recepción de datos
-        DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());) {
 
-      // Leer nombre del archivo
-      int fileNameLength = dataInputStream.readInt();
-      byte[] fileNameBytes = new byte[fileNameLength];
-      dataInputStream.readFully(fileNameBytes);
-      String fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
+    try (DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());) {
 
-      // Leer longitud del archivo
-      long fileLength = dataInputStream.readLong();
-      long originalFileLength = fileLength;
+      while (!this.socket.isClosed()) {
+        try {
+          // ============================================================================
+          // 1ER FLUJO RECIBIDO: Nombre del archivo
+          // Lee la longitud del nombre de archivo como un entero de 4 bytes desde el
+          // flujo de entrada
+          int fileNameLength = dataInputStream.readInt();
 
-      // Creamos un buffer de 64 KB cada elemento
-      byte[] buffer = new byte[64 * 1024];
-      int bytesRead;
+          // Crea un array de bytes para almacenar el nombre de archivo basado en la
+          // longitud leída anteriormente
+          byte[] fileNameBytes = new byte[fileNameLength];
 
-      // ByteArrayOutputStream para capturar los bytes escritos
-      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+          // Lee completamente la cantidad de bytes especificada para el nombre de archivo
+          // y los almacena en el array
+          dataInputStream.readFully(fileNameBytes);
 
-      // Leer datos del archivo en bloques de 64 KB
-      // Leemos del buffer a partir de la posición 0, N elementos y se repite hasta
-      // que el Stream queda vacío. El último elemento lo toma con la función Math.min
-      while ((bytesRead = dataInputStream.read(buffer, 0, (int) Math.min(buffer.length, fileLength))) != -1) {
-        // fileOutputStream.write(buffer, 0, bytesRead);
-        fileLength -= bytesRead;
+          // Convierte el array de bytes a una cadena de caracteres (String) utilizando la
+          // codificación UTF-8
+          String fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
 
-        // Captura los bytes escritos en el ByteArrayOutputStream
-        byteArrayOutputStream.write(buffer, 0, bytesRead);
+          // ============================================================================
+          // 2DO FLUJO RECIBIDO: Longitud del archivo a recibir
+          // Lee un long de 8 bytes que representa la longitud total del archivo
+          long fileLength = dataInputStream.readLong();
 
-        if (fileLength == 0) {
+          // Almacena la longitud original del archivo
+          long originalFileLength = fileLength;
+
+          // Crea un buffer de bytes de 64 KB para almacenar temporalmente los datos
+          // leídos
+          byte[] buffer = new byte[64 * 1024];
+
+          // Variable para almacenar el número de bytes leídos en cada iteración
+          int bytesRead;
+
+          // ByteArrayOutputStream para capturar los bytes escritos
+          ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+          // ============================================================================
+          // 3ER FLUJO RECIBIDO: El archivo
+          // Lee datos del archivo en bloques de 64 KB hasta que se haya leído la longitud
+          // total del archivo. El último elemento lo toma con la función Math.min, que
+          // devuelve el menor de 2 elementos
+          while ((bytesRead = dataInputStream.read(buffer, 0, (int) Math.min(buffer.length, fileLength))) != -1) {
+            fileLength -= bytesRead;
+
+            // Captura los bytes escritos en el ByteArrayOutputStream
+            byteArrayOutputStream.write(buffer, 0, bytesRead);
+
+            // Si ya se han leído todos los bytes, sale del bucle
+            if (fileLength == 0) {
+              break;
+            }
+          }
+          // Creamos un objeto para enviar a los observadores
+          ReceivedData data = new ReceivedData(fileName,
+              byteArrayOutputStream.toByteArray(), originalFileLength);
+
+          // Enviamos el objeto a los observadores
+          notifyObservers((Object) data);
+        } catch (EOFException eofException) {
+          // El socket fue cerrado en el lado del cliente
+          System.out.println("DataThread.Run EOFException:The client socket has been closed");
+          personalNotifier("disconnection", (Object) this.socket);
           break;
+        } catch (IOException e) {
+          // El socket cliente cerró la conexión antes de recibir la respuesta del socket
+          e.printStackTrace();
+          System.out.println(
+              "DataThread.Run IOException: the client closed the socket connection before the response could be returned over the server-socket side.");
+          break;
+        } finally {
+          // Cerramos el flujo de entrada y el socket
+          dataInputStream.close();
+          this.socket.close();
         }
       }
-
-      ReceivedData data = new ReceivedData(fileName, byteArrayOutputStream.toByteArray(), originalFileLength);
-
-      notifyObservers((Object) data);
-
-    } catch (Exception e) {
+    } catch (IOException e) {
       e.printStackTrace();
-
-      // TODO: handle exception
+      System.out
+          .println("DataThread.Run IOException: Error en la recepción de flujos de entrada. socket.getInputStream()");
+          
     }
-
   }
 
 }

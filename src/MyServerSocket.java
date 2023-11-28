@@ -1,4 +1,5 @@
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -6,15 +7,16 @@ import java.util.HashMap;
 
 public class MyServerSocket implements Observer {
   int port;
-  Thread connThread, dataThread;
-  HashMap<Integer, Socket> clients;
+  Thread connThread;
+  HashMap<Integer, Thread> threads;
+  HashMap<Integer, Socket> sockets;
 
   public MyServerSocket(int port) {
-    // Iniciamos el hilo de datos en vacío hasta que se reciba una nueva conexión
-    dataThread = null;
+    // Iniciamos la lista de hilos que alojará cada hilo escuchador de datos
+    this.threads = new HashMap<Integer, Thread>();
 
     // Iniciamos los clientes en vacío hasta que se reciba una nueva conexión
-    clients = new HashMap<Integer, Socket>();
+    sockets = new HashMap<Integer, Socket>();
 
     // Creamos un observador concreto llamado conObservable y le enviamos el puerto
     ConnThread conObservable = new ConnThread(port);
@@ -38,8 +40,11 @@ public class MyServerSocket implements Observer {
         // Hacemos un DownCasting de Object a Socket
         Socket socket = (Socket) data;
 
+        // Mostramos un mensaje indicando la conexión
+        System.out.println("New connection ID " + socket.hashCode());
+
         // Agregamos el socket a la lista de clientes
-        clients.put(socket.hashCode(), socket);
+        sockets.put(socket.hashCode(), socket);
 
         // Creamos un Observable y le enviamos el socket del cliente
         DataThread dataObservable = new DataThread(socket);
@@ -49,10 +54,13 @@ public class MyServerSocket implements Observer {
 
         // Creamos un hilo y le enviamos el observador con el socket que le habíamos
         // enviado antes
-        this.dataThread = new Thread(dataObservable);
+        Thread dataThread = new Thread(dataObservable);
 
         // Iniciamos el hilo para que empieze a escuchar los datos.
-        this.dataThread.start();
+        dataThread.start();
+
+        // Agregamos el hilo a la lista de hilos
+        this.threads.put(socket.hashCode(), dataThread);
         break;
       case "data":
         // Obtenemos los datos que envía el observable y lo recibimos como un
@@ -81,11 +89,34 @@ public class MyServerSocket implements Observer {
         }
         break;
 
+      case "disconnection":
+        // Cambiamos el objeto a Socket
+        Socket disconnectedSocket = (Socket) data;
+
+        // Obtenemos el ID del socket
+        int idSocket = disconnectedSocket.hashCode();
+
+        // Detenemos el hilo
+        threads.get(idSocket).interrupt();
+
+        // Cerramos el socket cliente
+        // try {
+        // disconnectedSocket.close();
+        // } catch (IOException e) {
+        // e.printStackTrace();
+        // } finally {
+        // Quitamos el socket de la lista aunque nos haya generado una excepción el
+        // cierre del socket
+        threads.remove(idSocket);
+        // }
+
+        break;
       default:
         break;
     }
   }
 
+  // Aumenta la fecha y hora al nombre del archivo "Archivo 05022023_055013.txt"
   private String getNewFileName(String bufferedFileName) {
     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("ddMMyyyy_HHmmss");
     LocalDateTime now = LocalDateTime.now();
