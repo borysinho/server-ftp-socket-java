@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -69,7 +71,39 @@ public class DataThread implements Observable, Runnable {
    */
   @Override
   public void run() {
+    try {
+      DataInputStream inputStream = new DataInputStream(socket.getInputStream());
 
+      // Recibir comando del cliente
+      String command = inputStream.readUTF();
+
+      if ("SEND".equals(command)) {
+        // Recibir nombre de archivo
+        String fileName = inputStream.readUTF();
+        System.out.println("Recibiendo archivo: " + fileName);
+
+        // Recibir el archivo
+        FileOutputStream fileOutputStream = new FileOutputStream("./data/" + getNewFileName(fileName));
+        byte[] buffer = new byte[4096];
+        int bytesRead;
+
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+          fileOutputStream.write(buffer, 0, bytesRead);
+        }
+
+        fileOutputStream.close();
+        socket.close();
+        System.out.println("Archivo recibido con éxito.");
+      } else {
+        System.out.println("Comando no reconocido.");
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+  }
+
+  private void test() {
     try (DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());) {
 
       while (!this.socket.isClosed()) {
@@ -157,4 +191,11 @@ public class DataThread implements Observable, Runnable {
     }
   }
 
+  private String getNewFileName(String bufferedFileName) {
+    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("ddMMyyyy_HHmmss");
+    LocalDateTime now = LocalDateTime.now();
+    StringBuilder newFileName = new StringBuilder(bufferedFileName);
+    newFileName.insert(bufferedFileName.lastIndexOf("."), " " + dtf.format(now));
+    return newFileName.toString();
+  }
 }

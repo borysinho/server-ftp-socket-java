@@ -99,13 +99,6 @@ public class MyServerSocket implements Observer {
         // Detenemos el hilo
         threads.get(idSocket).interrupt();
 
-        // Cerramos el socket cliente
-        // try {
-        // disconnectedSocket.close();
-        // } catch (IOException e) {
-        // e.printStackTrace();
-        // } finally {
-        // Quitamos el socket de la lista aunque nos haya generado una excepción el
         // cierre del socket
         threads.remove(idSocket);
         // }
